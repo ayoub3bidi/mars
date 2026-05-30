@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     POSTGRES_POOL_TIMEOUT: int = 30
     POSTGRES_POOL_RECYCLE: int = 1800
 
-    REDIS_HOST: str = "mercury_cache"
+    REDIS_HOST: str = "mars_cache"
     REDIS_PORT: int = 6379
 
     JWT_SECRET_KEY: SecretStr

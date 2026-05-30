@@ -1,8 +1,8 @@
-# Mercury Agent Guide
+# Mars Agent Guide
 
 ## Purpose
 
-Mercury is a small FastAPI backend boilerplate centered on JWT auth, PostgreSQL persistence, Redis initialization, and optional Google OIDC login. The project is intentionally simple: routes call thin controllers, controllers talk directly to SQLAlchemy sessions, and Flyway SQL files own the database schema.
+Mars is the **Pythonista** variant of Mercury: a small FastAPI backend boilerplate centered on JWT auth, PostgreSQL persistence, Redis initialization, and optional Google OIDC login. SQLAlchemy models and **Alembic** own the database schema (not Flyway SQL files).
 
 This file is a working analysis for future agents so they can navigate the repository quickly and avoid common mistakes.
 
@@ -20,7 +20,7 @@ This file is a working analysis for future agents so they can navigate the repos
 | Cache | Redis 7 (initialized at startup; not used in route logic yet) |
 | Auth | JWT (`python-jose`) + OAuth2 password flow + Google OIDC |
 | Passwords | Passlib (`sha256_crypt` when `JWT_ALGORITHM=HS256`, else `bcrypt`) |
-| Migrations | Flyway 10 (flat SQL files under `src/migrations/`) |
+| Migrations | Alembic 1.13+ (`alembic/versions/`, autogenerate from models) |
 | Tests | `unittest` (unit), `pytest` + `TestClient` (integration) |
 | Tooling | Docker Compose, Ruff, Bandit, Renovate, GitHub Actions |
 
@@ -40,7 +40,7 @@ Top-level areas:
 | `src/database/` | PostgreSQL engine/session (`postgres_db.py`), Redis bootstrap (`redis_db.py`) |
 | `src/middleware/auth_guard.py` | JWT decoding and auth dependencies |
 | `src/utils/` | Password hashing, JWT, OIDC helpers, response filtering, env parsing |
-| `src/migrations/` | Flyway SQL: `V1__`, `V2__`, `V3__` |
+| `alembic/` | Alembic migrations (`initial_schema`, `seed_admin_user`, …) |
 | `src/integration_tests/` | API-level tests |
 | `src/unit_tests/` | Minimal direct-function coverage |
 | `ci/` | Shell wrappers for Docker-based lint/test/security |
@@ -100,19 +100,18 @@ Single application model: `User` (`public.user` table).
 
 Google OIDC users are created with `password=None`.
 
-## Flyway Migrations
+## Alembic Migrations
 
-Flat layout in `src/migrations/` (not versioned subfolders):
+Revisions live in `alembic/versions/`:
 
-| File | Purpose |
-|------|---------|
-| `V1__init_db.sql` | `uuid-ossp` extension |
-| `V2__create_user_table.sql` | `user` table |
-| `V3__seed_admin_user.sql` | Dev admin `test@admin.com` / `Cloud.456` (sha256_crypt hash) |
+| Revision | Purpose |
+|----------|---------|
+| `initial_schema` | `uuid-ossp` extension + `user` table (from SQLAlchemy model) |
+| `seed_admin_user` | Dev admin `test@admin.com` / `Cloud.456` (sha256_crypt hash) |
 
-`flyway.conf` sets `validateOnMigrate=true`, `outOfOrder=false`. Compose service `mercury_migrate` runs before `mercury_api`.
+Compose service `mars_migrate` runs `alembic upgrade head` before `mars_api`.
 
-**Migration rename (since v0.3.1):** old paths like `V1/V1.1__*` were flattened to `V1__`, `V2__`, `V3__`. Existing DBs that already ran old Flyway versions need a manual Flyway/history plan before upgrading — do not assume a clean rename on production data.
+Autogenerate workflow: update models → `alembic revision --autogenerate -m "description"` → review → `alembic upgrade head`.
 
 ## Auth Model
 
@@ -155,14 +154,14 @@ Compose services:
 
 | Service | Role |
 |---------|------|
-| `mercury_api` | API (non-root `app` user, healthcheck on `/v1/health`) |
-| `mercury_db` | PostgreSQL 16 |
-| `mercury_cache` | Redis 7 |
-| `mercury_migrate` | Flyway (`FLYWAYDB_VERSION` default `10-alpine`) |
-| `mercury_integration_tests` | `pytest -v` |
-| `mercury_unit_tests` | `unittest discover` |
-| `mercury_linter` | `ruff check` |
-| `mercury_security` | `bandit` |
+| `mars_api` | API (non-root `app` user, healthcheck on `/v1/health`) |
+| `mars_db` | PostgreSQL 16 |
+| `mars_cache` | Redis 7 |
+| `mars_migrate` | Alembic (`alembic upgrade head`) |
+| `mars_integration_tests` | `pytest -v` |
+| `mars_unit_tests` | `unittest discover` |
+| `mars_linter` | `ruff check` |
+| `mars_security` | `bandit` |
 
 Commands:
 
@@ -179,7 +178,7 @@ GitHub Actions (`main` / `develop` / PRs):
 - **test.yml** — unit + integration via `ci/*.sh`
 - **lint.yml** — Ruff
 - **scan.yml** — Bandit
-- **build.yml** — Docker image on `main`
+- **build.yml** — Docker image `ayoub3bidi/mars:latest` on `main`
 - **release.yml** — GitHub Release on push of tag matching `v*`
 
 Renovate (`renovate.json`) groups pip minor/patch with automerge; majors and core frameworks (FastAPI, SQLAlchemy, Pydantic) need manual review.

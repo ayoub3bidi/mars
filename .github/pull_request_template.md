@@ -20,9 +20,9 @@
 
 <!-- How did you verify this? -->
 
-- [ ] `docker compose up --build --abort-on-container-exit mercury_linter`
-- [ ] `docker compose up --build --abort-on-container-exit mercury_integration_tests`
-- [ ] `docker compose up --build --abort-on-container-exit mercury_unit_tests`
+- [ ] `docker compose up --build --abort-on-container-exit mars_linter`
+- [ ] `docker compose up --build --abort-on-container-exit mars_integration_tests`
+- [ ] `docker compose up --build --abort-on-container-exit mars_unit_tests`
 - [ ] Manual / other:
 
 ## Notes

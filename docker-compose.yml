@@ -1,8 +1,8 @@
 services:
 
-  mercury_api:
+  mars_api:
     restart: always
-    image: mercury_api:latest
+    image: mars_api:latest
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -12,13 +12,13 @@ services:
     ports:
       - "8000:8000"
     networks:
-      - mercury_api
+      - mars_api
     depends_on:
-      mercury_cache:
+      mars_cache:
         condition: service_healthy
-      mercury_db:
+      mars_db:
         condition: service_healthy
-      mercury_migrate:
+      mars_migrate:
         condition: service_completed_successfully
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health')"]
@@ -27,47 +27,43 @@ services:
       retries: 3
       start_period: 15s
 
-  mercury_cache:
+  mars_cache:
     image: redis:7-alpine
     restart: always
-    container_name: mercury_cache
+    container_name: mars_cache
     networks:
-      - mercury_api
+      - mars_api
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
       timeout: 3s
       retries: 5
 
-  mercury_migrate:
-    image: flyway/flyway:${FLYWAYDB_VERSION:-10-alpine}
-    container_name: mercury_migrate
-    volumes:
-      - ./src/migrations:/flyway/sql
-      - ./flyway.conf:/flyway/conf/flyway.conf
-    environment:
-      - FLYWAY_URL=jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
-      - FLYWAY_USER=${POSTGRES_USER}
-      - FLYWAY_PASSWORD=${POSTGRES_PASSWORD}
-    command: migrate
+  mars_migrate:
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+      target: api
+    container_name: mars_migrate
+    command: alembic upgrade head
+    env_file:
+      - .env
     depends_on:
-      mercury_db:
+      mars_db:
         condition: service_healthy
     networks:
-      - mercury_api
+      - mars_api
 
-  mercury_db:
+  mars_db:
     image: postgres:16-alpine
-    container_name: mercury_db
-    ports:
-      - "5432:5432"
+    container_name: mars_db
     restart: always
     volumes:
-      - mercurydb:/var/lib/postgresql/data
+      - marsdb:/var/lib/postgresql/data
     env_file:
       - .env
     networks:
-      - mercury_api
+      - mars_api
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -75,7 +71,7 @@ services:
       retries: 5
       start_period: 10s
 
-  mercury_integration_tests:
+  mars_integration_tests:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -83,16 +79,16 @@ services:
     env_file:
       - .env
     depends_on:
-      mercury_db:
+      mars_db:
         condition: service_healthy
-      mercury_cache:
+      mars_cache:
         condition: service_healthy
-      mercury_migrate:
+      mars_migrate:
         condition: service_completed_successfully
     networks:
-      - mercury_api
+      - mars_api
 
-  mercury_unit_tests:
+  mars_unit_tests:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -100,7 +96,7 @@ services:
     env_file:
       - .env
 
-  mercury_linter:
+  mars_linter:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -108,7 +104,7 @@ services:
     env_file:
       - .env
 
-  mercury_security:
+  mars_security:
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -119,8 +115,8 @@ services:
       - .env
 
 volumes:
-  mercurydb:
+  marsdb:
 
 networks:
-  mercury_api:
+  mars_api:
     driver: bridge

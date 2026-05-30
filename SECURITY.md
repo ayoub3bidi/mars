@@ -10,7 +10,7 @@ Security fixes are applied to the latest release on the `main` branch. Older tag
 
 Instead, use one of the following:
 
-1. **GitHub Security Advisories** — open a [private vulnerability report](https://github.com/ayoub3bidi/mercury/security/advisories/new) on this repository (preferred).
+1. **GitHub Security Advisories** — open a [private vulnerability report](https://github.com/ayoub3bidi/mars/security/advisories/new) on this repository (preferred).
 2. **Maintainer contact** — reach the repository owner via GitHub profile contact options if advisories are unavailable.
 
 Include:
@@ -24,14 +24,14 @@ We aim to acknowledge reports within a few business days and will coordinate dis
 
 ## Production deployment
 
-When `APP_ENV=production`, Mercury blocks startup if weak default secrets are detected (`JWT_SECRET_KEY`, `POSTGRES_PASSWORD`). See `src/utils/production_checks.py`.
+When `APP_ENV=production`, Mars blocks startup if weak default secrets are detected (`JWT_SECRET_KEY`, `POSTGRES_PASSWORD`). See `src/utils/production_checks.py`.
 
 Before going to production:
 
 - Use strong, unique secrets (JWT at least 32 characters).
 - Remove or disable the seeded admin user (`test@admin.com`).
 - Restrict CORS and `ALLOWED_HOSTS` to your real domains.
-- Keep dependencies updated and run `mercury_security` (Bandit) in CI.
+- Keep dependencies updated and run `mars_security` (Bandit) in CI.
 
 ## Safe harbor
 

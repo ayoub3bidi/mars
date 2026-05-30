@@ -1,5 +1,4 @@
 ARG PYTHON_VERSION=3.12-slim-bookworm
-ARG FLYWAYDB_VERSION=10-alpine
 
 # Base image
 FROM python:${PYTHON_VERSION} AS base

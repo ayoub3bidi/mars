@@ -1,4 +1,4 @@
-# Contributing to Mercury
+# Contributing to Mars
 
 Thank you for your interest in contributing. This document covers the basics;
 for day-to-day development, see the [README](README.md).
@@ -15,20 +15,20 @@ for day-to-day development, see the [README](README.md).
 1. Create a branch from `main` with a clear name (e.g. `feat/my-feature`, `fix/login-error`).
 2. Make focused changes; keep PRs small when possible.
 3. Add or update integration tests under `src/integration_tests/` for API behavior changes.
-4. Run Flyway migrations for schema changes (`src/migrations/V{n}__description.sql`).
+4. Run Alembic migrations for schema changes (`alembic revision --autogenerate -m "description"`, review, then `alembic upgrade head`).
 5. Follow the [How to add a new endpoint](README.md#how-to-add-a-new-endpoint) checklist in the README.
 
 ## Checks to run locally
 
 ```shell
 # Linter
-docker compose up --build --abort-on-container-exit mercury_linter
+docker compose up --build --abort-on-container-exit mars_linter
 
 # Integration tests
-docker compose up --build --abort-on-container-exit mercury_integration_tests
+docker compose up --build --abort-on-container-exit mars_integration_tests
 
 # Unit tests
-docker compose up --build --abort-on-container-exit mercury_unit_tests
+docker compose up --build --abort-on-container-exit mars_unit_tests
 ```
 
 Optional: install [pre-commit](README.md#pre-commit) hooks for Ruff.
