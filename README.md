@@ -138,8 +138,6 @@ Get a JWT by calling `POST /v1/token` with form body `username=test@admin.com` a
 
 You can check the Swagger documentation on [localhost:8000](http://localhost:8000).
 
-![Swagger page](./src/assets/swagger.png)
-
 ```shell
 curl localhost:8000/v1/health
 ```
