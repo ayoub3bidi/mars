@@ -88,7 +88,7 @@ This will create a `.env` file in your project locally.
 ```shell
 APP_TITLE="Mars API Docs"
 APP_DESCRIPTION="This is the Swagger documentation of the Mars API"
-APP_VERSION=0.4.0
+APP_VERSION=0.1.0
 API_URL="http://localhost:8000"
 API_VERSION="v1"
 APP_ENV=local

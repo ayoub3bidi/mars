@@ -22,7 +22,7 @@ jobs:
           cat << 'ENVFILE' > .env
           LISTEN_ADDR=0.0.0.0
           LISTEN_PORT=8000
-          APP_VERSION=0.4.0
+          APP_VERSION=0.1.0
           APP_TITLE=Mars
           APP_DESCRIPTION=Mars API
           API_VERSION=v1

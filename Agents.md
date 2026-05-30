@@ -6,7 +6,7 @@ Mars is the **Pythonista** variant of Mercury: a small FastAPI backend boilerpla
 
 This file is a working analysis for future agents so they can navigate the repository quickly and avoid common mistakes.
 
-**Current release line:** latest tag is `v0.4.0` (2026 upgrade stack + community standards).
+**Current release line:** latest tag is `v0.1.0` (first Mars release — Alembic migrations, compose rebrand).
 
 ## Stack Summary
 
