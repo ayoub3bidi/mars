@@ -1,0 +1,45 @@
+id: mars
+repo: https://github.com/ayoub3bidi/mars
+default_ref: v0.1.0
+variables:
+  - name: project_name
+  - name: app_title
+  - name: api_version
+rewrites:
+  - file: .env.dist
+    replacements:
+      - from: "mars_db"
+        to: "{{.project_name}}_db"
+      - from: "mars_cache"
+        to: "{{.project_name}}_cache"
+      - from: "POSTGRES_HOST=mars_db"
+        to: "POSTGRES_HOST={{.project_name}}_db"
+      - from: "POSTGRES_PASSWORD=mars"
+        to: "POSTGRES_PASSWORD={{.project_name}}"
+      - from: "POSTGRES_USER=mars"
+        to: "POSTGRES_USER={{.project_name}}"
+      - from: "POSTGRES_DB=mars"
+        to: "POSTGRES_DB={{.project_name}}"
+      - from: "Mars API Docs"
+        to: "{{.app_title}}"
+      - from: '"v1"'
+        to: '"{{.api_version}}"'
+  - file: docker-compose.yml
+    replacements:
+      - from: "mars"
+        to: "{{.project_name}}"
+      - from: "marsdb"
+        to: "{{.project_name}}db"
+features:
+  - name: oidc
+    default: false
+    remove_paths:
+      - src/routes/oidc
+      - src/controllers/oidc
+    remove_lines:
+      - file: src/restful_ressources.py
+        pattern: "oidc"
+      - file: .env.dist
+        pattern: "OIDC"
+      - file: .env.dist
+        pattern: "GOOGLE_"
