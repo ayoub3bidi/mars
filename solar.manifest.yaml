@@ -1,6 +1,6 @@
 id: mars
 repo: https://github.com/ayoub3bidi/mars
-default_ref: v0.1.2
+default_ref: v0.1.3
 variables:
   - name: project_name
   - name: app_title
