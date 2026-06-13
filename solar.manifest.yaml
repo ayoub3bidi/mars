@@ -32,12 +32,37 @@ rewrites:
         to: "{{.project_name}}db"
       - from: "mars"
         to: "{{.project_name}}"
+  - file: src/constants/settings.py
+    replacements:
+      - from: '"mars_cache"'
+        to: '"{{.project_name}}_cache"'
+  - file: .github/workflows/test.yml
+    replacements:
+      - from: "APP_TITLE=Mars"
+        to: "APP_TITLE={{.app_title}}"
+      - from: "APP_DESCRIPTION=Mars API"
+        to: "APP_DESCRIPTION={{.app_title}}"
+      - from: "POSTGRES_HOST=mars_db"
+        to: "POSTGRES_HOST={{.project_name}}_db"
+      - from: "POSTGRES_DB=mars"
+        to: "POSTGRES_DB={{.project_name}}"
+      - from: "POSTGRES_USER=mars"
+        to: "POSTGRES_USER={{.project_name}}"
+      - from: "POSTGRES_PASSWORD=mars"
+        to: "POSTGRES_PASSWORD={{.project_name}}"
+      - from: "REDIS_HOST=mars_cache"
+        to: "REDIS_HOST={{.project_name}}_cache"
+  - file: .github/workflows/build.yml
+    replacements:
+      - from: "ayoub3bidi/mars:latest"
+        to: "ayoub3bidi/{{.project_name}}:latest"
 features:
   - name: oidc
     default: false
     remove_paths:
       - src/routes/oidc
       - src/controllers/oidc
+      - src/utils/oidc.py
     remove_lines:
       - file: src/restful_ressources.py
         pattern: "oidc"
