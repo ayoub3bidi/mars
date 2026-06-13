@@ -6,7 +6,7 @@ from repositories.user import UserRepository
 logger = logging.getLogger(__name__)
 
 _DEFAULT_JWT_SECRETS = frozenset({"mysecretkey", "changeme", "secret"})
-_DEFAULT_DB_PASSWORDS = frozenset({"mercury", "postgres", ""})
+_DEFAULT_DB_PASSWORDS = frozenset({"mars", "postgres", ""})
 _SEED_ADMIN_EMAIL = "test@admin.com"
 
 
