@@ -22,14 +22,16 @@ rewrites:
         to: "POSTGRES_DB={{.project_name}}"
       - from: "Mars API Docs"
         to: "{{.app_title}}"
+      - from: "Mars API"
+        to: "{{.app_title}}"
       - from: '"v1"'
         to: '"{{.api_version}}"'
   - file: docker-compose.yml
     replacements:
-      - from: "mars"
-        to: "{{.project_name}}"
       - from: "marsdb"
         to: "{{.project_name}}db"
+      - from: "mars"
+        to: "{{.project_name}}"
 features:
   - name: oidc
     default: false
