@@ -6,7 +6,7 @@ Mars is the **Pythonista** variant of Mercury: a small FastAPI backend boilerpla
 
 This file is a working analysis for future agents so they can navigate the repository quickly and avoid common mistakes.
 
-**Current release line:** latest tag is `v0.1.0` (first Mars release — Alembic migrations, compose rebrand).
+**Current release line:** latest tag is `v0.1.3` (Alembic migrations, `solar.manifest.yaml`, Solar Stack scaffold support).
 
 ## Stack Summary
 
@@ -193,25 +193,19 @@ Coverage is shallow but integration tests improved since v0.3.1:
 
 Local non-Docker runs need `PYTHONPATH=src` and installed deps from `requirements.txt`.
 
-## Changes Since v0.3.1 (v0.3.2 scope)
+## Release History (Mars)
 
-Single commit on `main` since `v0.3.1`: `834f9ae` — *refactor user management and authentication logic*.
+Mars was forked from Mercury with Alembic replacing Flyway. Notable stack choices:
 
-Notable deltas:
-
-- **SQLAlchemy 1.4 → 2.0** — `DeclarativeBase`, modern engine/session setup, `pool_pre_ping`
-- **Pydantic v2** — schemas use `ConfigDict` / `model_dump`
-- **Dependency bumps** — FastAPI 0.128, pinned requirements refresh
-- **Flyway layout** — flat `V1__` / `V2__` / `V3__` migration files
-- **Docker** — multi-stage Dockerfile, non-root API user, service healthchecks, `mercury_migrate` `service_completed_successfully` gate
-- **Compose** — Postgres 16, Redis 7, Flyway 10
-- **Renovate** — new `renovate.json`
-- **Docs** — README default admin table; this `Agents.md`
+- **SQLAlchemy 2.0** + **Pydantic v2**
+- **Alembic** migrations in `alembic/versions/` (autogenerate from models)
+- Compose service `mars_migrate` runs `alembic upgrade head` before `mars_api`
+- **`solar.manifest.yaml`** at repo root for [sun](https://github.com/ayoub3bidi/sun) scaffolds
 
 ## Architectural Strengths
 
 - Small, traceable codebase with consistent route → controller layout.
-- Explicit SQL migrations; readable seed for local dev.
+- Alembic revisions tied to SQLAlchemy models; readable seed for local dev.
 - Full Docker dev loop (migrate → api → tests).
 - Auth, admin, and OIDC scaffolding ready to extend.
 - CI covers test, lint, security, build, and tag releases.
@@ -219,30 +213,29 @@ Notable deltas:
 
 ## Main Risks and Sharp Edges
 
-1. **Startup side effects** — `create_all()` + Redis init on `main` import complicates testing and duplicates Flyway.
-2. **Dual schema management** — Flyway is source of truth for production; `create_all()` can drift or mask migration gaps.
+1. **Startup side effects** — `create_all()` + Redis init on `main` import complicates testing and duplicates Alembic.
+2. **Dual schema management** — Alembic is source of truth for production; `create_all()` can drift or mask migration gaps.
 3. **Inconsistent auth responses** — `/token` (401) vs `/user/login` (404); different response shapes.
 4. **Admin GET by id** — `remove_password_from_user(user)` when `user is None` → **500** instead of 404.
 5. **Password scheme tied to JWT algorithm** — `sha256_crypt` iff `HS256`; should be independent config.
 6. **Admin auth** — `get_current_admin_user` does not enforce `disabled`.
 7. **Redis** — connected but unused in business logic (bootstrap only).
 8. **Response filters** — `utils/filter.py` mutates ORM `__dict__` in place; risky if objects are reused.
-9. **Flyway migration rename** — upgrading from pre-v0.3.2 Flyway history may need `flyway repair` / baseline strategy.
-10. **Seeded admin** — fine for dev; must be removed/changed in production.
+9. **Seeded admin** — fine for dev; must be removed/changed in production.
 
 ## Recommendations For Future Agents
 
 - Prefer **Docker Compose** for anything that imports `src/main.py`.
-- Treat **Flyway SQL** as the schema source of truth; consider removing `create_all()` in a follow-up.
+- Treat **Alembic** as the schema source of truth; consider removing `create_all()` in a follow-up.
 - Preserve route/controller/module layout.
 - Keep JWT `sub=email` unless refactoring all auth paths together.
 - Add tests for auth failures, OIDC edge cases, and admin 404 paths — current coverage will not catch regressions.
-- When adding migrations, use next `V{n}__description.sql` in `src/migrations/`.
+- When adding migrations: update models → `alembic revision --autogenerate -m "description"` → review → `alembic upgrade head`.
 - Inspect git state before large edits; `main` may be ahead of latest tag.
 
 ## Suggested Improvement Order
 
-1. Remove `create_all()` from startup; rely on Flyway only.
+1. Remove `create_all()` from startup; rely on Alembic only.
 2. Normalize auth status codes and response shapes across `/token` and `/user/login`.
 3. Guard `GET /admin/user/{id}` for missing users (404 before filter).
 4. Decouple password hashing from `JWT_ALGORITHM`.
@@ -265,4 +258,4 @@ Not run in this shell (use Docker instead):
 
 ## Release Tagging
 
-Tags in this repo use a **`v` prefix** (`v0.3.1`, not `0.3.1`). Pushing `v0.3.2` triggers `.github/workflows/release.yml` to create a GitHub Release with generated notes.
+Tags in this repo use a **`v` prefix** (`v0.1.3`, not `0.1.3`). Pushing `v*` triggers `.github/workflows/release.yml` to create a GitHub Release with generated notes.
