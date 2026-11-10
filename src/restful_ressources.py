@@ -11,3 +11,7 @@ def import_resources(app):
     app.include_router(google.router, tags=["OIDC"], prefix=f"/{settings.v}/oidc")
     app.include_router(admin_user.router, tags=["Admin"], prefix=f"/{settings.v}/admin/user")
     app.include_router(user.router, tags=["User"], prefix=f"/{settings.v}/user")
+    if settings.MARS_AGENT_ENABLED:
+        from routes import runs
+
+        app.include_router(runs.router, tags=["Agent runs"], prefix=f"/{settings.v}")

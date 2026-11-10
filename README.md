@@ -29,15 +29,20 @@ Mars is the **Pythonista** variant of [Mercury](https://github.com/ayoub3bidi/me
 
 This project uses:
 - Basic [OAuth2](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/?h=jwt) authentication, utilizing the FastAPI security module. It also supports user authentication via Google integration.
-- [PostgreSQL](https://hub.docker.com/_/postgres) as its main database, [Redis](https://hub.docker.com/_/redis) for caching, and [Alembic](https://alembic.sqlalchemy.org/) for database migrations.
+- [PostgreSQL](https://hub.docker.com/_/postgres) as its main database, [Redis](https://hub.docker.com/_/redis) for cache and task broker storage, and [Alembic](https://alembic.sqlalchemy.org/) for database migrations.
+- Optional Celery worker and LangGraph agent services, with a local OpenAI-compatible mock endpoint.
+- Liveness/readiness checks, request IDs, JSON request logs, Prometheus metrics, and opt-in OpenTelemetry traces.
 - Unit and integration tests.
 - Security scanner (Bandit).
 
 ## Docker Hub image
 
-A pre-built API image is published on Docker Hub and updated on each push to `main`:
+A pre-built API image is published to Docker Hub and GHCR on each push to `main`:
 
 - **Repository:** [ayoub3bidi/mars](https://hub.docker.com/r/ayoub3bidi/mars)
+- **GHCR:** `ghcr.io/ayoub3bidi/mars`
+
+GitHub Actions publishes with the repository `GITHUB_TOKEN` and the `DOCKER_HUB_USERNAME` / `DOCKER_HUB_ACCESS_TOKEN` secrets. GitLab main-branch publishing also requires `GHCR_USERNAME` and `GHCR_TOKEN` CI variables.
 
 ```shell
 docker pull ayoub3bidi/mars:latest
@@ -85,56 +90,25 @@ Use it alongside your own Postgres and Redis setup, or clone this repo and run t
 cp .env.dist .env
 ```
 
-This will create a `.env` file in your project locally.
-
-```shell
-APP_TITLE="Mars API Docs"
-APP_DESCRIPTION="This is the Swagger documentation of the Mars API"
-APP_VERSION=0.1.0
-API_URL="http://localhost:8000"
-API_VERSION="v1"
-APP_ENV=local
-## Postgres Configuration
-POSTGRES_HOST=mars_db
-POSTGRES_PASSWORD=mars
-POSTGRES_PORT=5432
-POSTGRES_USER=mars
-POSTGRES_DB=mars
-POSTGRES_HOST_AUTH_METHOD=trust
-POSTGRES_SIZE_POOL=30
-POSTGRES_MAX_OVERFLOW=10
-POSTGRES_POOL_TIMEOUT=30
-POSTGRES_POOL_RECYCLE=1800
-## Redis Configuration
-REDIS_HOST=mars_cache
-REDIS_PORT=6379
-## JWT Configuration
-JWT_SECRET_KEY="mysecretkey"
-JWT_ALGORITHM="HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-## OIDC Configuration
-OIDC_GOOGLE_CLIENT_ID="changeme"
-OIDC_GOOGLE_CLIENT_SECRET="changeme"
-GOOGLE_AUTH_URL="https://accounts.google.com/o/oauth2/auth"
-GOOGLE_TOKEN_URL="https://accounts.google.com/o/oauth2/token"
-GOOGLE_USER_INFO_URL="https://www.googleapis.com/oauth2/v1/userinfo"
-```
+This creates a local `.env`; keep it out of version control. PostgreSQL uses password authentication. For mounted secrets, set fields such as `JWT_SECRET_KEY_FILE=/run/secrets/jwt_secret`; file-backed secret values take precedence over plaintext values. The sample JWT secret is accepted only when `APP_ENV=local`.
 
 ### Run the containers
 
 ```shell
-docker compose up --build --force-recreate
+docker compose up --build
 ```
+
+This starts only the API, PostgreSQL, Redis, Alembic migration, and local seed step. The admin account is created idempotently only when `APP_ENV=local`.
 
 ## Default admin account
 
-Migrations seed one admin user so you can try the API and admin routes right away:
+For local development, the seed command creates one admin user after migrations:
 
 | Email           | Password  |
 |-----------------|-----------|
 | test@admin.com  | Cloud.456 |
 
-Get a JWT by calling `POST /v1/token` with form body `username=test@admin.com` and `password=Cloud.456`, then use the returned `access_token` as `Authorization: Bearer <token>` for admin endpoints. Change or remove this user in production.
+Get a JWT by calling `POST /v1/token` with form body `username=test@admin.com` and `password=Cloud.456`, then use the returned `access_token` as `Authorization: Bearer <token>` for admin endpoints. The seed command exits without creating an account outside local mode. The forward Alembic migration removes only the original account with its unchanged password hash; it preserves customized accounts.
 
 ## Test the API
 
@@ -144,7 +118,14 @@ You can check the Swagger documentation on [localhost:8000](http://localhost:800
 curl localhost:8000/v1/health
 ```
 
-This will check the health of the API. The result should be like this:
+`/v1/health` remains the compatibility alias for liveness. `/v1/health/live` checks that the process responds; `/v1/health/ready` checks PostgreSQL and Redis and returns `503` if either is unavailable. Metrics are exposed at `/metrics`; each response includes `X-Request-ID`, and application request logs are JSON. Set `OTEL_ENABLED=true` and configure `OTEL_EXPORTER_OTLP_ENDPOINT` to enable traces.
+
+```shell
+curl localhost:8000/v1/health/live
+curl localhost:8000/v1/health/ready
+```
+
+The liveness response is:
 
 ```
 {"alive":true, "status":"ok"}
@@ -153,7 +134,7 @@ This will check the health of the API. The result should be like this:
 ## Test the database
 
 ```shell
-docker exec -it mars_db psql -U mars
+docker compose exec mars_db psql -U mars -d mars
 ```
 
 This command will take you inside the PostgreSQL database container where you can apply any SQL command you want.
@@ -188,6 +169,8 @@ docker compose up --build --abort-on-container-exit mars_migrate
 # or locally: alembic upgrade head
 ```
 
+Applied revisions are immutable: add a new revision for schema or data changes. Existing seed history is retained. The local seed command creates the default admin only when the account is absent and `APP_ENV=local`.
+
 To roll back one revision:
 
 ```shell
@@ -204,14 +187,14 @@ One of important things that should be in every project is tests to keeps thing 
 Here's how to run the integration test locally:
 
 ```shell
-docker compose up --build --abort-on-container-exit mars_integration_tests
+docker compose --profile test up --build --abort-on-container-exit --exit-code-from mars_integration_tests mars_integration_tests
 ```
 
 ### Unit tests
 Here's how to run the unit tests locally:
 
 ```shell
-docker compose up --build --abort-on-container-exit mars_unit_tests
+docker compose --profile test up --build --abort-on-container-exit mars_unit_tests
 ```
 
 ## Linter
@@ -222,7 +205,7 @@ For the linter we're working with [ruff](https://astral.sh/ruff), a very fast li
 Here's how to run the linter test locally:
 
 ```shell
-docker compose up --build --abort-on-container-exit mars_linter
+docker compose --profile test up --build --abort-on-container-exit mars_linter
 ```
 
 ## Security Scan
@@ -230,8 +213,24 @@ docker compose up --build --abort-on-container-exit mars_linter
 For our project, we're using `bandit`, a tool designed to find common security issues in Python code. Here's how to run it locally:
 
 ```shell
-docker compose up --build --abort-on-container-exit mars_security
+docker compose --profile test run --build --rm mars_security
 ```
+
+Test and tooling services are under the `test` profile; the `ci/*.sh` wrappers enable it automatically.
+
+## Optional worker and agent
+
+The worker and agent do not start with the core stack:
+
+```shell
+# Worker only; run endpoints remain disabled
+docker compose --profile worker up --build
+
+# Full local agent stack, including the mock OpenAI-compatible LLM
+MARS_AGENT_ENABLED=true docker compose --profile worker --profile agent up --build
+```
+
+With agent mode enabled, `POST /v1/runs` accepts a prompt and optional `token_budget`; `Idempotency-Key` avoids duplicate submissions. `GET /v1/runs/{id}` returns queued, running, completed, or failed state. Configure `LLM_BASE_URL` and `LLM_API_KEY` to use another OpenAI-compatible endpoint. Cache data uses Redis DB 0 and Celery broker/results use Redis DB 1.
 
 ## Pre-commit
 

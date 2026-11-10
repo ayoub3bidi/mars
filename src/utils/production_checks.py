@@ -10,17 +10,21 @@ _DEFAULT_DB_PASSWORDS = frozenset({"mars", "postgres", ""})
 _SEED_ADMIN_EMAIL = "test@admin.com"
 
 
-def validate_production_settings() -> None:
-    if settings.APP_ENV != "production":
+def validate_production_settings(config=settings) -> None:
+    if config.APP_ENV != "local" and config.jwt_secret_key == "mysecretkey":
+        raise RuntimeError(
+            "Startup blocked: set JWT_SECRET_KEY to a non-default value when APP_ENV is not local."
+        )
+    if config.APP_ENV != "production":
         return
 
-    jwt_secret = settings.jwt_secret_key
+    jwt_secret = config.jwt_secret_key
     if jwt_secret in _DEFAULT_JWT_SECRETS or len(jwt_secret) < 32:
         raise RuntimeError(
             "Production startup blocked: set a strong JWT_SECRET_KEY (at least 32 characters, not a default value)."
         )
 
-    db_password = settings.POSTGRES_PASSWORD.get_secret_value()
+    db_password = config.POSTGRES_PASSWORD.get_secret_value()
     if db_password in _DEFAULT_DB_PASSWORDS:
         raise RuntimeError(
             "Production startup blocked: set a strong POSTGRES_PASSWORD (not the default 'mercury' or empty)."

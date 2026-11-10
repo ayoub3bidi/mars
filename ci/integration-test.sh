@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker compose up --build --abort-on-container-exit mars_integration_tests
+docker compose --profile test up --build --abort-on-container-exit --exit-code-from mars_integration_tests mars_integration_tests

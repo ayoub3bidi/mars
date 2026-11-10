@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-docker compose up --build --force-recreate --abort-on-container-exit mars_security
+docker compose --profile test run --build --rm mars_security

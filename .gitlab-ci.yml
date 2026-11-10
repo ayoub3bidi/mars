@@ -1,58 +1,108 @@
 stages:
-  - cleanup
   - check
+  - build
   - scan
+  - publish
 
-cleanup_docker:
-  stage: cleanup
-  script:
-    - ./ci/cleanup-docker.sh
-  tags:
-    - web
-  only:
-    - /^(main|develop).*$/
-    - merge_requests
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+  MARS_CI_IMAGE: mars:${CI_COMMIT_SHA}
+
+.docker_job:
+  image: docker:27.5-cli
+  services:
+    - name: docker:27.5-dind
+  before_script:
+    - |
+      cat > .env <<'ENVFILE'
+      LISTEN_ADDR=0.0.0.0
+      LISTEN_PORT=8000
+      APP_VERSION=0.2.0
+      APP_TITLE=Mars
+      APP_DESCRIPTION=Mars API
+      API_VERSION=v1
+      APP_ENV=local
+      POSTGRES_HOST=mars_db
+      POSTGRES_PORT=5432
+      POSTGRES_DB=mars
+      POSTGRES_USER=mars
+      POSTGRES_PASSWORD=mars
+      REDIS_HOST=mars_cache
+      JWT_SECRET_KEY=local-ci-secret
+      JWT_ALGORITHM=HS256
+      ENVFILE
 
 lint:
+  extends: .docker_job
   stage: check
   script:
-    - setsid ./ci/lint.sh
+    - ./ci/lint.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH =~ /^(main|develop.*)$/
-  artifacts:
-    reports:
-      codequality: lint-report.json
-    expire_in: 1 week
-  tags:
-    - imagesbuilder
 
 unit_test:
+  extends: .docker_job
   stage: check
   script:
-    - setsid ./ci/unit-test.sh
+    - ./ci/unit-test.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH =~ /^(main|develop.*)$/
-  tags:
-    - imagesbuilder
 
 integration_test:
+  extends: .docker_job
   stage: check
   script:
-    - setsid ./ci/integration-test.sh
+    - ./ci/integration-test.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH =~ /^(main|develop.*)$/
-  tags:
-    - imagesbuilder
 
 security:
+  extends: .docker_job
   stage: scan
   script:
     - ./ci/security.sh
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
     - if: $CI_COMMIT_BRANCH =~ /^(main|develop.*)$/
-  tags:
-    - imagesbuilder
+
+image_build:
+  extends: .docker_job
+  stage: build
+  script:
+    - docker build --target api --tag "$MARS_CI_IMAGE" .
+    - docker save "$MARS_CI_IMAGE" --output mars-image.tar
+  artifacts:
+    paths: [mars-image.tar]
+    expire_in: 1 day
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH =~ /^(main|develop.*)$/
+
+image_scan:
+  image: aquasec/trivy:0.69.3
+  stage: scan
+  needs: [image_build]
+  script:
+    - trivy image --input mars-image.tar --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH =~ /^(main|develop.*)$/
+
+image_publish:
+  extends: .docker_job
+  stage: publish
+  needs: [image_build, image_scan, lint, unit_test, integration_test, security]
+  script:
+    - docker load --input mars-image.tar
+    - echo "$DOCKER_HUB_ACCESS_TOKEN" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
+    - echo "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USERNAME" --password-stdin
+    - docker tag "$MARS_CI_IMAGE" ayoub3bidi/mars:latest
+    - docker tag "$MARS_CI_IMAGE" "ghcr.io/$GHCR_USERNAME/mars:latest"
+    - docker push ayoub3bidi/mars:latest
+    - docker push "ghcr.io/$GHCR_USERNAME/mars:latest"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"

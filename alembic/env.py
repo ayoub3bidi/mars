@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from constants.settings import settings  # noqa: E402
 from database.postgres_db import Base  # noqa: E402
 import models.User  # noqa: E402, F401
+import models.Run  # noqa: E402, F401
 
 config = context.config
 
