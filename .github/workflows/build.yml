@@ -41,6 +41,8 @@ jobs:
         run: ./ci/lint.sh
       - name: Run Bandit
         run: ./ci/security.sh
+      - name: Run agent runtime and migration E2E
+        run: ./ci/agent-e2e.sh
   build-publish:
     runs-on: ubuntu-latest
     needs: [quality]
